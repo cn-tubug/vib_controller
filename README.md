@@ -2,7 +2,7 @@
 
 #### 使用方法
 
-`pip install flask pygame`
+`pip install flask pygame asyncio  aiohttp`
 
 `python3 app.py`
 

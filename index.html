@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手柄振动控制器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            background-color: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 600px;
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 2rem;
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .control-pad {
+            width: 100%;
+            height: 300px;
+            background: #f8f8f8;
+            border-radius: 8px;
+            position: relative;
+            touch-action: none;
+            margin: 1.5rem 0;
+            border: 1px solid #eee;
+        }
+
+        .control-point {
+            width: 24px;
+            height: 24px;
+            background: #007AFF;
+            border-radius: 50%;
+            position: absolute;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            left: 50%;
+            top: 50%;
+            transition: transform 0.2s ease;
+        }
+
+        .control-point:active {
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+
+        .status {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .intensity-display {
+            flex: 1;
+            text-align: center;
+            padding: 1rem;
+            background: #f8f8f8;
+            border-radius: 6px;
+        }
+
+        .intensity-label {
+            font-size: 0.875rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+
+        .intensity-value {
+            font-size: 1.25rem;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .grid-lines {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .grid-lines::before,
+        .grid-lines::after {
+            content: '';
+            position: absolute;
+            background: #eee;
+        }
+
+        .grid-lines::before {
+            width: 1px;
+            height: 100%;
+            left: 50%;
+        }
+
+        .grid-lines::after {
+            width: 100%;
+            height: 1px;
+            top: 50%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>手柄振动控制器</h1>
+        <div class="control-pad" id="controlPad">
+            <div class="grid-lines"></div>
+            <div class="control-point" id="controlPoint"></div>
+        </div>
+        <div class="status">
+            <div class="intensity-display">
+                <div class="intensity-label">左马达</div>
+                <div class="intensity-value" id="leftIntensity">0%</div>
+            </div>
+            <div class="intensity-display">
+                <div class="intensity-label">右马达</div>
+                <div class="intensity-value" id="rightIntensity">0%</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = new WebSocket('ws://localhost:8080/ws');
+        const controlPad = document.getElementById('controlPad');
+        const controlPoint = document.getElementById('controlPoint');
+        const leftIntensityDisplay = document.getElementById('leftIntensity');
+        const rightIntensityDisplay = document.getElementById('rightIntensity');
+
+        let isDragging = false;
+        let rect = controlPad.getBoundingClientRect();
+
+        function updateVibration(x, y) {
+            const normalizedX = Math.max(0, Math.min(1, x / rect.width));
+            const normalizedY = Math.max(0, Math.min(1, y / rect.height));
+            
+            const leftIntensity = 1 - normalizedY;
+            const rightIntensity = normalizedX;
+
+            leftIntensityDisplay.textContent = `${Math.round(leftIntensity * 100)}%`;
+            rightIntensityDisplay.textContent = `${Math.round(rightIntensity * 100)}%`;
+
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    left: leftIntensity,
+                    right: rightIntensity
+                }));
+            }
+
+            controlPoint.style.left = `${x}px`;
+            controlPoint.style.top = `${y}px`;
+        }
+
+        function handleStart(e) {
+            isDragging = true;
+            rect = controlPad.getBoundingClientRect();
+            const x = (e.clientX || e.touches[0].clientX) - rect.left;
+            const y = (e.clientY || e.touches[0].clientY) - rect.top;
+            updateVibration(x, y);
+            controlPoint.style.transition = 'none';
+        }
+
+        function handleMove(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            const x = (e.clientX || e.touches[0].clientX) - rect.left;
+            const y = (e.clientY || e.touches[0].clientY) - rect.top;
+            updateVibration(x, y);
+        }
+
+        function handleEnd() {
+            isDragging = false;
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ action: 'stop' }));
+            }
+            controlPoint.style.transition = 'all 0.2s ease';
+            controlPoint.style.left = '50%';
+            controlPoint.style.top = '50%';
+            leftIntensityDisplay.textContent = '0%';
+            rightIntensityDisplay.textContent = '0%';
+        }
+
+        controlPad.addEventListener('mousedown', handleStart);
+        document.addEventListener('mousemove', handleMove);
+        document.addEventListener('mouseup', handleEnd);
+
+        controlPad.addEventListener('touchstart', handleStart);
+        document.addEventListener('touchmove', handleMove);
+        document.addEventListener('touchend', handleEnd);
+
+        ws.onclose = () => {
+            console.log('WebSocket连接已关闭，尝试重新连接...');
+            setTimeout(() => {
+                ws = new WebSocket('ws://192.168.0.38:8080/ws');
+            }, 1000);
+        };
+    </script>
+</body>
+</html>
