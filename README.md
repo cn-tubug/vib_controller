@@ -3,11 +3,9 @@
 
 #### 特别注意⚠️
 
-[v1.0.0🏷️](https://github.com/cn-tubug/vib_controller/releases/tag/v1.0.0)
+[v1🏷️](https://github.com/cn-tubug/vib_controller/releases/tag/v1.0.0)
 
-[v2.0.0🏷️](https://github.com/cn-tubug/vib_controller/releases/tag/v2.0.0)
-
-
+[v2🏷️](https://github.com/cn-tubug/vib_controller/releases/tag/v2.0.0)
 
 此程序分为两个版本
 大家可以任意下载两个版本进行体验使用
